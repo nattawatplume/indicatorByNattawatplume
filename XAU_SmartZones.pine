@@ -3,7 +3,7 @@
 // Demand/Supply zones from base -> impulse legs, zone-rejection BUY/SELL signals,
 // HTF EMA trend filter, session filter, room-to-target check, A/B/C score.
 // All decisions are made on CONFIRMED (closed) bars only -> signals do not repaint.
-indicator("XAU SmartZones", shorttitle = "XAU SZ", overlay = true, scale = scale.right, max_boxes_count = 200, max_lines_count = 100, max_labels_count = 100, max_bars_back = 100)
+indicator("XAU SmartZones", shorttitle = "XAU SZ", overlay = true, scale = scale.none, max_boxes_count = 200, max_lines_count = 100, max_labels_count = 100, max_bars_back = 100)
 
 // ───────────────────────── Inputs ─────────────────────────
 grpZ = "โซน Demand / Supply"
