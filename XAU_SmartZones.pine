@@ -397,9 +397,9 @@ if barstate.islast and zones.size() > 0
                 dists.push(side == 1 ? math.max(0.0, close - z.top) : math.max(0.0, z.bottom - close))
                 idxs.push(i)
         if dists.size() > 0
-            order = dists.sort_indices()
-            for r = 0 to order.size() - 1
-                Zone z = zones.get(idxs.get(order.get(r)))
+            ordIdx = dists.sort_indices()
+            for r = 0 to ordIdx.size() - 1
+                Zone z = zones.get(idxs.get(ordIdx.get(r)))
                 if r < zonesPerSide
                     c = f_zoneColor(z)
                     box.set_bgcolor(z.bx, c)
