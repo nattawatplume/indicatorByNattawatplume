@@ -428,7 +428,7 @@ alertcondition(sellSig, "XAU SZ - SELL", "XAU SmartZones SELL {{ticker}} @ {{clo
 
 // ───────────────────────── Panel (card style, Thai) ─────────────────────────
 pos = panelPos == "top_left" ? position.top_left : panelPos == "bottom_right" ? position.bottom_right : panelPos == "bottom_left" ? position.bottom_left : position.top_right
-var table panel = table.new(pos, 2, 8, border_color = color.new(#2a2e39, 0), border_width = 1)
+var table panel = table.new(pos, 2, 8, border_width = 0)
 // top positions: push the card below TradingView's legend with an empty spacer row
 panelOff = (panelPos == "top_right" or panelPos == "top_left") ? 1 : 0
 
