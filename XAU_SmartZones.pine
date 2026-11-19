@@ -1,0 +1,481 @@
+//@version=6
+// XAU SmartZones (TradingView version) - by Nattawat
+// Demand/Supply zones from base -> impulse legs, zone-rejection BUY/SELL signals,
+// HTF EMA trend filter, session filter, room-to-target check, A/B/C score.
+// All decisions are made on CONFIRMED (closed) bars only -> signals do not repaint.
+indicator("XAU SmartZones", shorttitle = "XAU SZ", overlay = true, max_boxes_count = 200, max_lines_count = 100, max_labels_count = 100, max_bars_back = 100)
+
+// ───────────────────────── Inputs ─────────────────────────
+grpZ = "โซน Demand / Supply"
+atrLen       = input.int(14, "ATR period", minval = 1, group = grpZ)
+impulseATR   = input.float(1.8, "ขาวิ่งขั้นต่ำ (เท่าของ ATR)", minval = 0.5, step = 0.1, group = grpZ)
+maxLegBars   = input.int(5, "ขาวิ่งยาวไม่เกิน (แท่ง)", minval = 1, maxval = 10, group = grpZ)
+maxBaseBars  = input.int(3, "ฐานโซนไม่เกิน (แท่ง)", minval = 1, maxval = 5, group = grpZ)
+baseBodyATR  = input.float(0.6, "แท่งฐานเพิ่มเติมต้องตัวเล็กกว่า (ATR)", step = 0.1, group = grpZ)
+minZoneATR   = input.float(0.15, "ความหนาโซนขั้นต่ำ (ATR)", step = 0.05, group = grpZ)
+maxZoneATR   = input.float(1.5, "ความหนาโซนสูงสุด (ATR)", step = 0.1, group = grpZ)
+breakBufATR  = input.float(0.10, "ปิดทะลุเกินกี่ ATR = โซนแตก", step = 0.05, group = grpZ)
+maxTouches   = input.int(3, "แตะเกินกี่ครั้ง = ลบโซน", minval = 1, group = grpZ)
+zoneMaxAge   = input.int(600, "อายุโซนสูงสุด (แท่ง)", minval = 50, group = grpZ)
+requireBOS   = input.bool(false, "สร้างโซนเฉพาะที่เบรกโครงสร้าง (BOS)", group = grpZ)
+swingL       = input.int(3, "Swing: แท่งซ้าย", minval = 1, group = grpZ)
+swingR       = input.int(3, "Swing: แท่งขวา", minval = 1, group = grpZ)
+zonesPerSide = input.int(4, "แสดงโซนใกล้ราคาฝั่งละ", minval = 1, maxval = 10, group = grpZ)
+extendBars   = input.int(15, "ยืดโซนไปทางขวา (แท่ง)", minval = 0, maxval = 100, group = grpZ)
+
+grpS = "สัญญาณ Buy / Sell"
+showSignals    = input.bool(true, "แสดงสัญญาณ", group = grpS)
+minScore       = input.int(60, "คะแนนขั้นต่ำ (60=B+, 80=A)", minval = 0, maxval = 100, group = grpS)
+maxTouchSignal = input.int(2, "ให้สัญญาณเฉพาะการแตะครั้งที่ 1..N", minval = 1, group = grpS)
+wickRatio      = input.float(0.35, "ไส้ปฏิเสธขั้นต่ำ (สัดส่วนแท่ง)", step = 0.05, group = grpS)
+slBufATR       = input.float(0.25, "SL ห่างขอบโซน (ATR)", step = 0.05, group = grpS)
+minRiskATR     = input.float(0.5, "SL ใกล้สุด (ATR)", step = 0.1, group = grpS)
+maxRiskATR     = input.float(3.0, "SL ไกลเกินนี้ = ไม่ให้สัญญาณ (ATR)", step = 0.1, group = grpS)
+minRR          = input.float(1.5, "ที่ว่างถึงโซนตรงข้ามขั้นต่ำ (R)", step = 0.1, group = grpS)
+targetRR       = input.float(2.0, "TP2 สูงสุด (R)", step = 0.1, group = grpS)
+cooldownBars   = input.int(6, "เว้นกี่แท่งก่อนสัญญาณทิศเดิมอีกครั้ง", minval = 0, group = grpS)
+showLevels     = input.int(3, "วาดเส้น Entry/SL/TP ของสัญญาณล่าสุด", minval = 0, maxval = 10, group = grpS)
+levelBars      = input.int(12, "ความยาวเส้น (แท่ง)", minval = 3, group = grpS)
+
+grpT = "กรองเทรนด์ (TF ใหญ่)"
+trendMode = input.string("EMA", "โหมดกรองเทรนด์", options = ["OFF", "EMA", "EMA+Price"], group = grpT)
+htf       = input.timeframe("60", "TF ใหญ่ (ต้องใหญ่กว่ากราฟ)", group = grpT)
+fastLen   = input.int(50, "EMA เร็ว", group = grpT)
+slowLen   = input.int(200, "EMA ช้า", group = grpT)
+
+grpSe = "ช่วงเวลาเทรด"
+useSession = input.bool(true, "ให้สัญญาณเฉพาะช่วงเวลา", group = grpSe)
+sess       = input.session("1400-0400", "ช่วงเวลา (ลอนดอน-นิวยอร์ก)", group = grpSe)
+tz         = input.string("Asia/Bangkok", "Timezone", group = grpSe)
+
+grpV = "หน้าตา"
+demandCol    = input.color(color.new(#1fae80, 72), "Demand สด", group = grpV)
+demandTested = input.color(color.new(#1fae80, 86), "Demand ถูกแตะแล้ว", group = grpV)
+supplyCol    = input.color(color.new(#e0475e, 72), "Supply สด", group = grpV)
+supplyTested = input.color(color.new(#e0475e, 86), "Supply ถูกแตะแล้ว", group = grpV)
+zoneTextCol  = input.color(#9598a1, "สีตัวหนังสือโซน", group = grpV)
+showPanel    = input.bool(true, "แสดง Panel", group = grpV)
+panelPos     = input.string("top_right", "ตำแหน่ง Panel", options = ["top_right", "top_left", "bottom_right", "bottom_left"], group = grpV)
+
+// ───────────────────────── Types / state ─────────────────────────
+type Zone
+    int   dir
+    float top
+    float bottom
+    int   leftBar
+    int   createdBar
+    float impulse
+    bool  bos
+    int   touches  = 0
+    bool  inside   = false
+    bool  signaled = false
+    bool  dead     = false
+    box   bx
+
+var zones     = array.new<Zone>()
+var sigLines  = array.new<line>()
+var sigLabels = array.new<label>()
+
+var float shPrice = na
+var float shPrev  = na
+var int   shBar   = na
+var float slPrice = na
+var float slPrev  = na
+var int   slBar   = na
+var int   lastBullLeg = -1
+var int   lastBearLeg = -1
+var int   lastBuyBar  = -100000
+var int   lastSellBar = -100000
+var int   lastSigDir   = 0
+var float lastEntry    = na
+var float lastSL       = na
+var float lastTP       = na
+var int   lastScore    = 0
+var int   lastSigTime  = na
+
+// ───────────────────────── Series (every bar) ─────────────────────────
+atr = ta.atr(atrLen)
+ph  = ta.pivothigh(high, swingL, swingR)
+pl  = ta.pivotlow(low, swingL, swingR)
+
+htfFast  = request.security(syminfo.tickerid, htf, ta.ema(close, fastLen)[1], lookahead = barmerge.lookahead_on)
+htfSlow  = request.security(syminfo.tickerid, htf, ta.ema(close, slowLen)[1], lookahead = barmerge.lookahead_on)
+trendRaw = na(htfFast) or na(htfSlow) ? 0 : htfFast > htfSlow ? 1 : htfFast < htfSlow ? -1 : 0
+trend    = trendMode == "EMA+Price" ? (trendRaw == 1 and close < htfSlow ? 0 : trendRaw == -1 and close > htfSlow ? 0 : trendRaw) : trendRaw
+
+inSess = not useSession or not na(time(timeframe.period, sess, tz))
+
+rng        = high - low
+body       = math.abs(close - open)
+upW        = high - math.max(open, close)
+loW        = math.min(open, close) - low
+bullEngulf = close > open and close[1] < open[1] and close >= open[1] and open <= close[1]
+bearEngulf = close < open and close[1] > open[1] and close <= open[1] and open >= close[1]
+bullReject = rng > 0 and ((loW >= wickRatio * rng and close >= low + 0.5 * rng) or bullEngulf)
+bearReject = rng > 0 and ((upW >= wickRatio * rng and close <= high - 0.5 * rng) or bearEngulf)
+strongBull = bullEngulf or (rng > 0 and loW >= 0.55 * rng) or (close > open and body >= 0.8 * atr)
+strongBear = bearEngulf or (rng > 0 and upW >= 0.55 * rng) or (close < open and body >= 0.8 * atr)
+
+// ───────────────────────── Helpers ─────────────────────────
+f_score(Zone z, bool strong, bool aligned) =>
+    s = 40
+    s += z.bos ? 15 : 0
+    s += z.impulse >= 2.5 ? 10 : z.impulse >= 2.0 ? 5 : 0
+    s += z.touches <= 1 ? 10 : 0
+    s += aligned ? 15 : 0
+    s += strong ? 10 : 0
+    math.min(s, 100)
+
+f_grade(int s) => s >= 80 ? "A" : s >= 65 ? "B" : "C"
+
+f_stars(Zone z) =>
+    n = 1 + (z.bos ? 1 : 0) + (z.impulse >= 2.5 ? 1 : 0)
+    str.repeat("★", n)
+
+f_zoneColor(Zone z) =>
+    z.dir == 1 ? (z.touches == 0 ? demandCol : demandTested) : (z.touches == 0 ? supplyCol : supplyTested)
+
+f_zoneText(Zone z) =>
+    (z.dir == 1 ? "DEMAND " : "SUPPLY ") + f_stars(z) + "  T" + str.tostring(z.touches) + "  " + str.tostring(z.bottom, format.mintick) + "-" + str.tostring(z.top, format.mintick)
+
+f_nearestOpp(int dir, float price) =>
+    float best = na
+    for z in zones
+        if not z.dead
+            if dir == 1 and z.dir == -1 and z.bottom > price
+                best := na(best) or z.bottom < best ? z.bottom : best
+            if dir == -1 and z.dir == 1 and z.top < price
+                best := na(best) or z.top > best ? z.top : best
+    best
+
+f_addZone(int dir, float top, float bottom, int leftBar, float impulse, bool bos) =>
+    bool merged = false
+    for z in zones
+        if not merged and not z.dead and z.dir == dir and top >= z.bottom and bottom <= z.top
+            merged := true
+            if bos
+                z.bos := true
+            if impulse > z.impulse
+                z.impulse := impulse
+    if not merged
+        Zone nz = Zone.new(dir, top, bottom, leftBar, bar_index, impulse, bos)
+        nz.bx := box.new(leftBar, top, bar_index + extendBars, bottom, border_color = color.new(f_zoneColor(nz), 50), bgcolor = f_zoneColor(nz), text = f_zoneText(nz), text_color = zoneTextCol, text_size = size.small, text_halign = text.align.right, text_valign = dir == 1 ? text.align.top : text.align.bottom)
+        zones.push(nz)
+        if zones.size() > 60
+            Zone old = zones.shift()
+            box.delete(old.bx)
+
+f_plan(int dir, Zone z) =>
+    entry = close
+    sl    = dir == 1 ? z.bottom - slBufATR * atr : z.top + slBufATR * atr
+    risk  = (entry - sl) * dir
+    if risk < minRiskATR * atr
+        risk := minRiskATR * atr
+        sl   := entry - dir * risk
+    ok  = risk <= maxRiskATR * atr
+    tp2 = entry + dir * targetRR * risk
+    opp = f_nearestOpp(dir, entry)
+    if ok and not na(opp)
+        room = (opp - entry) * dir
+        if room < minRR * risk
+            ok := false
+        else if room < targetRR * risk
+            tp2 := opp
+    [ok, entry, sl, entry + dir * risk, tp2]
+
+f_drawSignal(int dir, float entry, float sl, float tp1, float tp2, int score) =>
+    if showLevels > 0
+        x2 = bar_index + levelBars
+        sigLines.push(line.new(bar_index, entry, x2, entry, color = color.gray, style = line.style_dotted))
+        sigLines.push(line.new(bar_index, sl, x2, sl, color = #ff5252))
+        sigLines.push(line.new(bar_index, tp1, x2, tp1, color = #29b6f6, style = line.style_dashed))
+        sigLines.push(line.new(bar_index, tp2, x2, tp2, color = #2962ff))
+        txt = (dir == 1 ? "BUY " : "SELL ") + f_grade(score) + str.tostring(score) + "\nTP2 " + str.tostring(tp2, format.mintick) + "\nTP1 " + str.tostring(tp1, format.mintick) + "\nEntry " + str.tostring(entry, format.mintick) + "\nSL " + str.tostring(sl, format.mintick)
+        sigLabels.push(label.new(x2, entry, txt, style = label.style_label_left, color = color.new(dir == 1 ? #089981 : #f23645, 15), textcolor = color.white, size = size.small))
+        while sigLines.size() > showLevels * 4
+            line.delete(sigLines.shift())
+        while sigLabels.size() > showLevels
+            label.delete(sigLabels.shift())
+
+// ───────────────────────── Core logic (closed bars only) ─────────────────────────
+buySig  = false
+sellSig = false
+float sigEntry = na
+float sigSL    = na
+float sigTP1   = na
+float sigTP2   = na
+int   sigScore = 0
+
+if barstate.isconfirmed and not na(atr) and atr > 0
+    // swings (confirmed swingR bars later)
+    if not na(ph)
+        shPrev  := shPrice
+        shPrice := ph
+        shBar   := bar_index - swingR
+    if not na(pl)
+        slPrev  := slPrice
+        slPrice := pl
+        slBar   := bar_index - swingR
+
+    // 1) update zones, collect best candidates
+    int bestBuy   = -1
+    int bestSell  = -1
+    int buyScore  = -1
+    int sellScore = -1
+    for [i, z] in zones
+        if not z.dead and z.createdBar < bar_index
+            if z.dir == 1
+                if close < z.bottom - breakBufATR * atr
+                    z.dead := true
+                else
+                    if low <= z.top
+                        if not z.inside
+                            z.touches  := z.touches + 1
+                            z.inside   := true
+                            z.signaled := false
+                    else
+                        z.inside := false
+                    if z.inside and not z.signaled and z.touches <= maxTouchSignal and bullReject and close > z.bottom
+                        sc = f_score(z, strongBull, trend == 1)
+                        if sc > buyScore
+                            buyScore := sc
+                            bestBuy  := i
+            else
+                if close > z.top + breakBufATR * atr
+                    z.dead := true
+                else
+                    if high >= z.bottom
+                        if not z.inside
+                            z.touches  := z.touches + 1
+                            z.inside   := true
+                            z.signaled := false
+                    else
+                        z.inside := false
+                    if z.inside and not z.signaled and z.touches <= maxTouchSignal and bearReject and close < z.top
+                        sc = f_score(z, strongBear, trend == -1)
+                        if sc > sellScore
+                            sellScore := sc
+                            bestSell  := i
+
+    // 2) signals
+    if showSignals and inSess and not (bestBuy >= 0 and bestSell >= 0)
+        if bestBuy >= 0 and (trendMode == "OFF" or trend == 1) and buyScore >= minScore and bar_index - lastBuyBar >= cooldownBars
+            Zone z = zones.get(bestBuy)
+            [ok, e, s, t1, t2] = f_plan(1, z)
+            if ok
+                buySig     := true
+                z.signaled := true
+                lastBuyBar := bar_index
+                sigEntry := e
+                sigSL    := s
+                sigTP1   := t1
+                sigTP2   := t2
+                sigScore := buyScore
+        if bestSell >= 0 and (trendMode == "OFF" or trend == -1) and sellScore >= minScore and bar_index - lastSellBar >= cooldownBars
+            Zone z = zones.get(bestSell)
+            [ok, e, s, t1, t2] = f_plan(-1, z)
+            if ok
+                sellSig     := true
+                z.signaled  := true
+                lastSellBar := bar_index
+                sigEntry := e
+                sigSL    := s
+                sigTP1   := t1
+                sigTP2   := t2
+                sigScore := sellScore
+
+    if buySig or sellSig
+        d = buySig ? 1 : -1
+        f_drawSignal(d, sigEntry, sigSL, sigTP1, sigTP2, sigScore)
+        lastSigDir  := d
+        lastEntry   := sigEntry
+        lastSL      := sigSL
+        lastTP      := sigTP2
+        lastScore   := sigScore
+        lastSigTime := time
+        alert("XAU SmartZones " + syminfo.ticker + " " + timeframe.period + ": " + (d == 1 ? "BUY" : "SELL") + " @" + str.tostring(sigEntry, format.mintick) + "  SL " + str.tostring(sigSL, format.mintick) + "  TP1 " + str.tostring(sigTP1, format.mintick) + "  TP2 " + str.tostring(sigTP2, format.mintick) + "  (" + f_grade(sigScore) + " " + str.tostring(sigScore) + ")", alert.freq_once_per_bar_close)
+
+    // 3) retire exhausted / old zones
+    for z in zones
+        if not z.dead and (z.touches > maxTouches or bar_index - z.createdBar > zoneMaxAge)
+            z.dead := true
+
+    // 4) detect new zones
+    if close > open
+        int ls = 0
+        if maxLegBars > 1
+            for k = 1 to maxLegBars - 1
+                if close[k] > open[k]
+                    ls := k
+                else
+                    break
+        move = close - open[ls]
+        if move >= impulseATR * atr and bar_index - ls != lastBullLeg
+            lastBullLeg := bar_index - ls
+            int b  = ls + 1
+            int bs = b
+            if maxBaseBars > 1
+                for k = b + 1 to b + maxBaseBars - 1
+                    if math.abs(close[k] - open[k]) <= baseBodyATR * atr
+                        bs := k
+                    else
+                        break
+            float bottom = low[ls]
+            float top    = 0.0
+            float hi     = 0.0
+            for k = b to bs
+                bottom := math.min(bottom, low[k])
+                top    := math.max(top, math.max(open[k], close[k]))
+                hi     := math.max(hi, high[k])
+            if top - bottom < minZoneATR * atr
+                top := hi
+            if top - bottom < minZoneATR * atr
+                top := bottom + minZoneATR * atr
+            if top - bottom > maxZoneATR * atr
+                top := bottom + maxZoneATR * atr
+            bos = not na(shPrice) and shBar < bar_index and close > shPrice
+            if not na(top) and not na(bottom) and (not requireBOS or bos)
+                f_addZone(1, top, bottom, bar_index - bs, move / atr, bos)
+
+    if close < open
+        int ls = 0
+        if maxLegBars > 1
+            for k = 1 to maxLegBars - 1
+                if close[k] < open[k]
+                    ls := k
+                else
+                    break
+        move = open[ls] - close
+        if move >= impulseATR * atr and bar_index - ls != lastBearLeg
+            lastBearLeg := bar_index - ls
+            int b  = ls + 1
+            int bs = b
+            if maxBaseBars > 1
+                for k = b + 1 to b + maxBaseBars - 1
+                    if math.abs(close[k] - open[k]) <= baseBodyATR * atr
+                        bs := k
+                    else
+                        break
+            float top    = high[ls]
+            float bottom = 1e10
+            float lo     = 1e10
+            for k = b to bs
+                top    := math.max(top, high[k])
+                bottom := math.min(bottom, math.min(open[k], close[k]))
+                lo     := math.min(lo, low[k])
+            if top - bottom < minZoneATR * atr
+                bottom := lo
+            if top - bottom < minZoneATR * atr
+                bottom := top - minZoneATR * atr
+            if top - bottom > maxZoneATR * atr
+                bottom := top - maxZoneATR * atr
+            bos = not na(slPrice) and slBar < bar_index and close < slPrice
+            if not na(top) and not na(bottom) and (not requireBOS or bos)
+                f_addZone(-1, top, bottom, bar_index - bs, move / atr, bos)
+
+    // 5) remove dead zones, refresh live boxes
+    if zones.size() > 0
+        for i = zones.size() - 1 to 0
+            Zone z = zones.get(i)
+            if z.dead
+                box.delete(z.bx)
+                zones.remove(i)
+    for z in zones
+        c = f_zoneColor(z)
+        box.set_right(z.bx, bar_index + extendBars)
+        box.set_bgcolor(z.bx, c)
+        box.set_border_color(z.bx, color.new(c, 50))
+        box.set_text(z.bx, f_zoneText(z))
+
+// ───────────────────────── Show only nearest zones ─────────────────────────
+if barstate.islast and zones.size() > 0
+    for side in array.from(1, -1)
+        dists = array.new<float>()
+        idxs  = array.new<int>()
+        for [i, z] in zones
+            if z.dir == side
+                dists.push(side == 1 ? math.max(0.0, close - z.top) : math.max(0.0, z.bottom - close))
+                idxs.push(i)
+        if dists.size() > 0
+            order = dists.sort_indices()
+            for r = 0 to order.size() - 1
+                Zone z = zones.get(idxs.get(order.get(r)))
+                if r < zonesPerSide
+                    c = f_zoneColor(z)
+                    box.set_bgcolor(z.bx, c)
+                    box.set_border_color(z.bx, color.new(c, 50))
+                    box.set_text_color(z.bx, zoneTextCol)
+                else
+                    box.set_bgcolor(z.bx, color.new(color.black, 100))
+                    box.set_border_color(z.bx, color.new(color.black, 100))
+                    box.set_text_color(z.bx, color.new(color.black, 100))
+
+// ───────────────────────── Plots & alerts ─────────────────────────
+plotshape(buySig, "Buy", shape.triangleup, location.belowbar, #00e676, size = size.small, text = "BUY", textcolor = #00e676)
+plotshape(sellSig, "Sell", shape.triangledown, location.abovebar, #ff5252, size = size.small, text = "SELL", textcolor = #ff5252)
+alertcondition(buySig, "XAU SZ - BUY", "XAU SmartZones BUY {{ticker}} @ {{close}}")
+alertcondition(sellSig, "XAU SZ - SELL", "XAU SmartZones SELL {{ticker}} @ {{close}}")
+
+// ───────────────────────── Panel ─────────────────────────
+pos = panelPos == "top_left" ? position.top_left : panelPos == "bottom_right" ? position.bottom_right : panelPos == "bottom_left" ? position.bottom_left : position.top_right
+var table panel = table.new(pos, 1, 9, bgcolor = color.new(#131722, 10), border_color = color.new(#363a45, 0), border_width = 1, frame_color = color.new(#363a45, 0), frame_width = 1)
+
+f_row(int r, string t, color c) =>
+    table.cell(panel, 0, r, t, text_color = c, text_size = size.small, text_halign = text.align.left)
+
+if showPanel and barstate.islast
+    tTxt = trend == 1 ? "BULLISH ▲" : trend == -1 ? "BEARISH ▼" : "UNKNOWN"
+    tCol = trend == 1 ? #00e676 : trend == -1 ? #ff5252 : color.gray
+    st = "RANGE"
+    if not na(shPrev) and not na(slPrev)
+        st := shPrice > shPrev and slPrice > slPrev ? "UPTREND (HH/HL)" : shPrice < shPrev and slPrice < slPrev ? "DOWNTREND (LH/LL)" : "RANGE"
+    float dTop = na
+    float dBot = na
+    float dDist = na
+    float sTop = na
+    float sBot = na
+    float sDist = na
+    bool inDemand = false
+    bool inSupply = false
+    for z in zones
+        if z.dir == 1
+            d = math.max(0.0, close - z.top)
+            inDemand := inDemand or (close >= z.bottom and close <= z.top)
+            if na(dDist) or d < dDist
+                dDist := d
+                dTop  := z.top
+                dBot  := z.bottom
+        else
+            d = math.max(0.0, z.bottom - close)
+            inSupply := inSupply or (close >= z.bottom and close <= z.top)
+            if na(sDist) or d < sDist
+                sDist := d
+                sTop  := z.top
+                sBot  := z.bottom
+    dTxt = na(dDist) ? "-" : str.tostring(dBot, format.mintick) + "-" + str.tostring(dTop, format.mintick) + " (" + str.tostring(dDist, "#.0") + ")"
+    sTxt = na(sDist) ? "-" : str.tostring(sBot, format.mintick) + "-" + str.tostring(sTop, format.mintick) + " (" + str.tostring(sDist, "#.0") + ")"
+    string plan = "No clear HTF trend: stand aside"
+    color  pc   = color.gray
+    if trendMode == "OFF"
+        plan := inDemand ? ">> IN DEMAND: watch BUY" : inSupply ? ">> IN SUPPLY: watch SELL" : "Wait for price to reach a zone"
+        pc   := inDemand ? #00e676 : inSupply ? #ff5252 : color.gray
+    else if trend == 1
+        plan := inDemand ? ">> IN DEMAND: watch BUY trigger" : "Bias BUY: wait pullback to DEMAND"
+        pc   := #00e676
+    else if trend == -1
+        plan := inSupply ? ">> IN SUPPLY: watch SELL trigger" : "Bias SELL: wait rally to SUPPLY"
+        pc   := #ff5252
+    if not inSess
+        plan := "Out of session: no signals"
+        pc   := color.gray
+    sigTxt = lastSigDir == 0 ? "Last: none" : "Last: " + (lastSigDir == 1 ? "BUY " : "SELL ") + f_grade(lastScore) + str.tostring(lastScore) + " @" + str.tostring(lastEntry, format.mintick) + "  SL " + str.tostring(lastSL, format.mintick) + "  TP " + str.tostring(lastTP, format.mintick)
+    sigCol = lastSigDir == 1 ? #00e676 : lastSigDir == -1 ? #ff5252 : color.gray
+    f_row(0, "XAU SMART ZONES  " + syminfo.ticker + " " + timeframe.period, #ffd54f)
+    f_row(1, "HTF " + htf + " trend: " + tTxt, tCol)
+    f_row(2, "Structure: " + st, color.white)
+    f_row(3, "ATR(" + str.tostring(atrLen) + "): " + str.tostring(atr, "#.00"), color.white)
+    f_row(4, "Demand: " + dTxt, #4dd0a1)
+    f_row(5, "Supply: " + sTxt, #ff7a8a)
+    f_row(6, sigTxt, sigCol)
+    f_row(7, "Session: " + (inSess ? "OPEN" : "CLOSED"), inSess ? color.white : color.gray)
+    f_row(8, plan, pc)
