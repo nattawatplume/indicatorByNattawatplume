@@ -428,12 +428,14 @@ alertcondition(sellSig, "XAU SZ - SELL", "XAU SmartZones SELL {{ticker}} @ {{clo
 
 // ───────────────────────── Panel (card style, Thai) ─────────────────────────
 pos = panelPos == "top_left" ? position.top_left : panelPos == "bottom_right" ? position.bottom_right : panelPos == "bottom_left" ? position.bottom_left : position.top_right
-var table panel = table.new(pos, 2, 7, bgcolor = color.new(#131722, 8), border_color = color.new(#2a2e39, 0), border_width = 1, frame_color = color.new(#2a2e39, 0), frame_width = 1)
+var table panel = table.new(pos, 2, 8, border_color = color.new(#2a2e39, 0), border_width = 1)
+// top positions: push the card below TradingView's legend with an empty spacer row
+panelOff = (panelPos == "top_right" or panelPos == "top_left") ? 1 : 0
 
 f_px(float v) => mobile ? str.tostring(v, "#.0") : str.tostring(v, format.mintick)
 
 f_cell(int c, int r, string t, color fg, color bg) =>
-    table.cell(panel, c, r, t, text_color = fg, bgcolor = bg, text_size = uiSize, text_halign = text.align_left)
+    table.cell(panel, c, r + panelOff, t, text_color = fg, bgcolor = bg, text_size = uiSize, text_halign = text.align_left)
 
 if showPanel and barstate.islast
     // nearest zones + is price inside one
@@ -461,7 +463,7 @@ if showPanel and barstate.islast
                 sTop  := z.top
                 sBot  := z.bottom
 
-    bgDark  = color.new(#131722, 8)
+    bgDark  = color.new(#131722, 0)
     green   = #00e676
     red     = #ff5252
     grey    = #9598a1
@@ -490,6 +492,8 @@ if showPanel and barstate.islast
         plan := (lastSigDir == 1 ? "BUY ใหม่!" : "SELL ใหม่!") + " ดูกรอบบนกราฟ"
         pc   := lastSigDir == 1 ? green : red
 
+    if panelOff == 1
+        table.cell(panel, 0, 0, "", bgcolor = color.new(color.black, 100), height = mobile ? 12 : 9)
     f_cell(0, 0, badge, color.white, badgeBg)
     f_cell(1, 0, plan, pc, bgDark)
 
