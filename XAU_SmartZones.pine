@@ -159,7 +159,6 @@ f_addZone(int dir, float top, float bottom, int leftBar, float impulse, bool bos
                 z.impulse := impulse
     if not merged
         Zone nz = Zone.new(dir, top, bottom, leftBar, bar_index, impulse, bos)
-        nz.bx := box.new(leftBar, top, bar_index + extendBars, bottom, border_color = color.new(f_zoneColor(nz), 50), bgcolor = f_zoneColor(nz), text = f_zoneText(nz), text_color = zoneTextCol, text_size = size.small, text_halign = text.align_right, text_valign = dir == 1 ? text.align_top : text.align_bottom)
         zones.push(nz)
         if zones.size() > 60
             Zone old = zones.shift()
@@ -380,12 +379,6 @@ if barstate.isconfirmed and not na(atr) and atr > 0
             if z.dead
                 box.delete(z.bx)
                 zones.remove(i)
-    for z in zones
-        c = f_zoneColor(z)
-        box.set_right(z.bx, bar_index + extendBars)
-        box.set_bgcolor(z.bx, c)
-        box.set_border_color(z.bx, color.new(c, 50))
-        box.set_text(z.bx, f_zoneText(z))
 
 // ───────────────────────── Show only nearest zones ─────────────────────────
 if barstate.islast and zones.size() > 0
@@ -402,13 +395,17 @@ if barstate.islast and zones.size() > 0
                 Zone z = zones.get(idxs.get(ordIdx.get(r)))
                 if r < zonesPerSide
                     c = f_zoneColor(z)
+                    if na(z.bx)
+                        z.bx := box.new(z.leftBar, z.top, bar_index + extendBars, z.bottom, text_size = size.small, text_halign = text.align_right, text_valign = z.dir == 1 ? text.align_top : text.align_bottom)
+                    box.set_right(z.bx, bar_index + extendBars)
                     box.set_bgcolor(z.bx, c)
                     box.set_border_color(z.bx, color.new(c, 50))
+                    box.set_text(z.bx, f_zoneText(z))
                     box.set_text_color(z.bx, zoneTextCol)
                 else
-                    box.set_bgcolor(z.bx, color.new(color.black, 100))
-                    box.set_border_color(z.bx, color.new(color.black, 100))
-                    box.set_text_color(z.bx, color.new(color.black, 100))
+                    // delete hidden zones so they do not stretch the price scale
+                    box.delete(z.bx)
+                    z.bx := na
 
 // ───────────────────────── Plots & alerts ─────────────────────────
 plotshape(buySig, "Buy", shape.triangleup, location.belowbar, #00e676, size = size.small, text = "BUY", textcolor = #00e676)
