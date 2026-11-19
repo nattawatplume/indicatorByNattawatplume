@@ -159,7 +159,7 @@ f_addZone(int dir, float top, float bottom, int leftBar, float impulse, bool bos
                 z.impulse := impulse
     if not merged
         Zone nz = Zone.new(dir, top, bottom, leftBar, bar_index, impulse, bos)
-        nz.bx := box.new(leftBar, top, bar_index + extendBars, bottom, border_color = color.new(f_zoneColor(nz), 50), bgcolor = f_zoneColor(nz), text = f_zoneText(nz), text_color = zoneTextCol, text_size = size.small, text_halign = text.align.right, text_valign = dir == 1 ? text.align.top : text.align.bottom)
+        nz.bx := box.new(leftBar, top, bar_index + extendBars, bottom, border_color = color.new(f_zoneColor(nz), 50), bgcolor = f_zoneColor(nz), text = f_zoneText(nz), text_color = zoneTextCol, text_size = size.small, text_halign = text.align_right, text_valign = dir == 1 ? text.align_top : text.align_bottom)
         zones.push(nz)
         if zones.size() > 60
             Zone old = zones.shift()
@@ -421,7 +421,7 @@ pos = panelPos == "top_left" ? position.top_left : panelPos == "bottom_right" ? 
 var table panel = table.new(pos, 1, 9, bgcolor = color.new(#131722, 10), border_color = color.new(#363a45, 0), border_width = 1, frame_color = color.new(#363a45, 0), frame_width = 1)
 
 f_row(int r, string t, color c) =>
-    table.cell(panel, 0, r, t, text_color = c, text_size = size.small, text_halign = text.align.left)
+    table.cell(panel, 0, r, t, text_color = c, text_size = size.small, text_halign = text.align_left)
 
 if showPanel and barstate.islast
     tTxt = trend == 1 ? "BULLISH ▲" : trend == -1 ? "BEARISH ▼" : "UNKNOWN"
