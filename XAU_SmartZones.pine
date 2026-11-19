@@ -7,55 +7,59 @@ indicator("XAU SmartZones", shorttitle = "XAU SZ", overlay = true, scale = scale
 
 // ───────────────────────── Inputs ─────────────────────────
 grpZ = "โซน Demand / Supply"
-atrLen       = input.int(14, "ATR period", minval = 1, group = grpZ)
-impulseATR   = input.float(1.8, "ขาวิ่งขั้นต่ำ (เท่าของ ATR)", minval = 0.5, step = 0.1, group = grpZ)
-maxLegBars   = input.int(5, "ขาวิ่งยาวไม่เกิน (แท่ง)", minval = 1, maxval = 10, group = grpZ)
-maxBaseBars  = input.int(3, "ฐานโซนไม่เกิน (แท่ง)", minval = 1, maxval = 5, group = grpZ)
-baseBodyATR  = input.float(0.6, "แท่งฐานเพิ่มเติมต้องตัวเล็กกว่า (ATR)", step = 0.1, group = grpZ)
-minZoneATR   = input.float(0.15, "ความหนาโซนขั้นต่ำ (ATR)", step = 0.05, group = grpZ)
-maxZoneATR   = input.float(1.5, "ความหนาโซนสูงสุด (ATR)", step = 0.1, group = grpZ)
-breakBufATR  = input.float(0.10, "ปิดทะลุเกินกี่ ATR = โซนแตก", step = 0.05, group = grpZ)
-maxTouches   = input.int(3, "แตะเกินกี่ครั้ง = ลบโซน", minval = 1, group = grpZ)
-zoneMaxAge   = input.int(600, "อายุโซนสูงสุด (แท่ง)", minval = 50, group = grpZ)
-requireBOS   = input.bool(false, "สร้างโซนเฉพาะที่เบรกโครงสร้าง (BOS)", group = grpZ)
-swingL       = input.int(3, "Swing: แท่งซ้าย", minval = 1, group = grpZ)
-swingR       = input.int(3, "Swing: แท่งขวา", minval = 1, group = grpZ)
-zonesPerSide = input.int(4, "แสดงโซนใกล้ราคาฝั่งละ", minval = 1, maxval = 10, group = grpZ)
-extendBars   = input.int(15, "ยืดโซนไปทางขวา (แท่ง)", minval = 0, maxval = 100, group = grpZ)
+atrLen       = input.int(14, "ATR period", minval = 1, group = grpZ, display = display.none)
+impulseATR   = input.float(1.8, "ขาวิ่งขั้นต่ำ (เท่าของ ATR)", minval = 0.5, step = 0.1, group = grpZ, display = display.none)
+maxLegBars   = input.int(5, "ขาวิ่งยาวไม่เกิน (แท่ง)", minval = 1, maxval = 10, group = grpZ, display = display.none)
+maxBaseBars  = input.int(3, "ฐานโซนไม่เกิน (แท่ง)", minval = 1, maxval = 5, group = grpZ, display = display.none)
+baseBodyATR  = input.float(0.6, "แท่งฐานเพิ่มเติมต้องตัวเล็กกว่า (ATR)", step = 0.1, group = grpZ, display = display.none)
+minZoneATR   = input.float(0.15, "ความหนาโซนขั้นต่ำ (ATR)", step = 0.05, group = grpZ, display = display.none)
+maxZoneATR   = input.float(1.5, "ความหนาโซนสูงสุด (ATR)", step = 0.1, group = grpZ, display = display.none)
+breakBufATR  = input.float(0.10, "ปิดทะลุเกินกี่ ATR = โซนแตก", step = 0.05, group = grpZ, display = display.none)
+maxTouches   = input.int(3, "แตะเกินกี่ครั้ง = ลบโซน", minval = 1, group = grpZ, display = display.none)
+zoneMaxAge   = input.int(600, "อายุโซนสูงสุด (แท่ง)", minval = 50, group = grpZ, display = display.none)
+requireBOS   = input.bool(false, "สร้างโซนเฉพาะที่เบรกโครงสร้าง (BOS)", group = grpZ, display = display.none)
+swingL       = input.int(3, "Swing: แท่งซ้าย", minval = 1, group = grpZ, display = display.none)
+swingR       = input.int(3, "Swing: แท่งขวา", minval = 1, group = grpZ, display = display.none)
+zonesPerSide = input.int(4, "แสดงโซนใกล้ราคาฝั่งละ", minval = 1, maxval = 10, group = grpZ, display = display.none)
+extendBars   = input.int(15, "ยืดโซนไปทางขวา (แท่ง)", minval = 0, maxval = 100, group = grpZ, display = display.none)
 
 grpS = "สัญญาณ Buy / Sell"
-showSignals    = input.bool(true, "แสดงสัญญาณ", group = grpS)
-minScore       = input.int(60, "คะแนนขั้นต่ำ (60=B+, 80=A)", minval = 0, maxval = 100, group = grpS)
-maxTouchSignal = input.int(2, "ให้สัญญาณเฉพาะการแตะครั้งที่ 1..N", minval = 1, group = grpS)
-wickRatio      = input.float(0.35, "ไส้ปฏิเสธขั้นต่ำ (สัดส่วนแท่ง)", step = 0.05, group = grpS)
-slBufATR       = input.float(0.25, "SL ห่างขอบโซน (ATR)", step = 0.05, group = grpS)
-minRiskATR     = input.float(0.5, "SL ใกล้สุด (ATR)", step = 0.1, group = grpS)
-maxRiskATR     = input.float(3.0, "SL ไกลเกินนี้ = ไม่ให้สัญญาณ (ATR)", step = 0.1, group = grpS)
-minRR          = input.float(1.5, "ที่ว่างถึงโซนตรงข้ามขั้นต่ำ (R)", step = 0.1, group = grpS)
-targetRR       = input.float(2.0, "TP2 สูงสุด (R)", step = 0.1, group = grpS)
-cooldownBars   = input.int(6, "เว้นกี่แท่งก่อนสัญญาณทิศเดิมอีกครั้ง", minval = 0, group = grpS)
-showLevels     = input.int(3, "วาดเส้น Entry/SL/TP ของสัญญาณล่าสุด", minval = 0, maxval = 10, group = grpS)
-levelBars      = input.int(12, "ความยาวเส้น (แท่ง)", minval = 3, group = grpS)
+showSignals    = input.bool(true, "แสดงสัญญาณ", group = grpS, display = display.none)
+minScore       = input.int(60, "คะแนนขั้นต่ำ (60=B+, 80=A)", minval = 0, maxval = 100, group = grpS, display = display.none)
+maxTouchSignal = input.int(2, "ให้สัญญาณเฉพาะการแตะครั้งที่ 1..N", minval = 1, group = grpS, display = display.none)
+wickRatio      = input.float(0.35, "ไส้ปฏิเสธขั้นต่ำ (สัดส่วนแท่ง)", step = 0.05, group = grpS, display = display.none)
+slBufATR       = input.float(0.25, "SL ห่างขอบโซน (ATR)", step = 0.05, group = grpS, display = display.none)
+minRiskATR     = input.float(0.5, "SL ใกล้สุด (ATR)", step = 0.1, group = grpS, display = display.none)
+maxRiskATR     = input.float(3.0, "SL ไกลเกินนี้ = ไม่ให้สัญญาณ (ATR)", step = 0.1, group = grpS, display = display.none)
+minRR          = input.float(1.5, "ที่ว่างถึงโซนตรงข้ามขั้นต่ำ (R)", step = 0.1, group = grpS, display = display.none)
+targetRR       = input.float(2.0, "TP2 สูงสุด (R)", step = 0.1, group = grpS, display = display.none)
+cooldownBars   = input.int(6, "เว้นกี่แท่งก่อนสัญญาณทิศเดิมอีกครั้ง", minval = 0, group = grpS, display = display.none)
+showLevels     = input.int(1, "วาดเส้น Entry/SL/TP ของสัญญาณล่าสุด", minval = 0, maxval = 10, group = grpS, display = display.none)
+levelBars      = input.int(12, "ความยาวเส้น (แท่ง)", minval = 3, group = grpS, display = display.none)
 
 grpT = "กรองเทรนด์ (TF ใหญ่)"
-trendMode = input.string("EMA", "โหมดกรองเทรนด์", options = ["OFF", "EMA", "EMA+Price"], group = grpT)
-htf       = input.timeframe("60", "TF ใหญ่ (ต้องใหญ่กว่ากราฟ)", group = grpT)
-fastLen   = input.int(50, "EMA เร็ว", group = grpT)
-slowLen   = input.int(200, "EMA ช้า", group = grpT)
+trendMode = input.string("EMA", "โหมดกรองเทรนด์", options = ["OFF", "EMA", "EMA+Price"], group = grpT, display = display.none)
+htf       = input.timeframe("60", "TF ใหญ่ (ต้องใหญ่กว่ากราฟ)", group = grpT, display = display.none)
+fastLen   = input.int(50, "EMA เร็ว", group = grpT, display = display.none)
+slowLen   = input.int(200, "EMA ช้า", group = grpT, display = display.none)
 
 grpSe = "ช่วงเวลาเทรด"
-useSession = input.bool(true, "ให้สัญญาณเฉพาะช่วงเวลา", group = grpSe)
-sess       = input.session("1400-0400", "ช่วงเวลา (ลอนดอน-นิวยอร์ก)", group = grpSe)
-tz         = input.string("Asia/Bangkok", "Timezone", group = grpSe)
+useSession = input.bool(true, "ให้สัญญาณเฉพาะช่วงเวลา", group = grpSe, display = display.none)
+sess       = input.session("1400-0400", "ช่วงเวลา (ลอนดอน-นิวยอร์ก)", group = grpSe, display = display.none)
+tz         = input.string("Asia/Bangkok", "Timezone", group = grpSe, display = display.none)
 
 grpV = "หน้าตา"
-demandCol    = input.color(color.new(#1fae80, 72), "Demand สด", group = grpV)
-demandTested = input.color(color.new(#1fae80, 86), "Demand ถูกแตะแล้ว", group = grpV)
-supplyCol    = input.color(color.new(#e0475e, 72), "Supply สด", group = grpV)
-supplyTested = input.color(color.new(#e0475e, 86), "Supply ถูกแตะแล้ว", group = grpV)
-zoneTextCol  = input.color(#9598a1, "สีตัวหนังสือโซน", group = grpV)
-showPanel    = input.bool(true, "แสดง Panel", group = grpV)
-panelPos     = input.string("top_right", "ตำแหน่ง Panel", options = ["top_right", "top_left", "bottom_right", "bottom_left"], group = grpV)
+demandCol    = input.color(color.new(#1fae80, 72), "Demand สด", group = grpV, display = display.none)
+demandTested = input.color(color.new(#1fae80, 86), "Demand ถูกแตะแล้ว", group = grpV, display = display.none)
+supplyCol    = input.color(color.new(#e0475e, 72), "Supply สด", group = grpV, display = display.none)
+supplyTested = input.color(color.new(#e0475e, 86), "Supply ถูกแตะแล้ว", group = grpV, display = display.none)
+zoneTextCol  = input.color(#9598a1, "สีตัวหนังสือโซน", group = grpV, display = display.none)
+uiMode       = input.string("มือถือ", "รูปแบบหน้าจอ", options = ["มือถือ", "คอม"], group = grpV, display = display.none, tooltip = "มือถือ = Panel เล็ก ป้ายสั้น เห็นกราฟเยอะ · คอม = ข้อมูลครบ")
+showPanel    = input.bool(true, "แสดง Panel", group = grpV, display = display.none)
+panelPos     = input.string("bottom_left", "ตำแหน่ง Panel", options = ["top_right", "top_left", "bottom_right", "bottom_left"], group = grpV, display = display.none)
+showZonePx   = input.bool(false, "แสดงราคาบนป้ายโซน", group = grpV, display = display.none)
+mobile       = uiMode == "มือถือ"
+uiSize       = mobile ? size.small : size.normal
 
 // ───────────────────────── Types / state ─────────────────────────
 type Zone
@@ -75,6 +79,7 @@ type Zone
 var zones     = array.new<Zone>()
 var sigLines  = array.new<line>()
 var sigLabels = array.new<label>()
+var sigBoxes  = array.new<box>()
 
 var float shPrice = na
 var float shPrev  = na
@@ -136,7 +141,10 @@ f_zoneColor(Zone z) =>
     z.dir == 1 ? (z.touches == 0 ? demandCol : demandTested) : (z.touches == 0 ? supplyCol : supplyTested)
 
 f_zoneText(Zone z) =>
-    (z.dir == 1 ? "DEMAND " : "SUPPLY ") + f_stars(z) + "  T" + str.tostring(z.touches) + "  " + str.tostring(z.bottom, format.mintick) + "-" + str.tostring(z.top, format.mintick)
+    name = mobile ? (z.dir == 1 ? "BUY ZONE " : "SELL ZONE ") : (z.dir == 1 ? "DEMAND " : "SUPPLY ")
+    tch  = z.touches == 0 ? (mobile ? "" : "  fresh") : "  แตะ " + str.tostring(z.touches)
+    px   = showZonePx ? "  " + str.tostring(z.bottom, format.mintick) + "-" + str.tostring(z.top, format.mintick) : ""
+    name + f_stars(z) + tch + px
 
 f_nearestOpp(int dir, float price) =>
     float best = na
@@ -185,15 +193,20 @@ f_plan(int dir, Zone z) =>
 f_drawSignal(int dir, float entry, float sl, float tp1, float tp2, int score) =>
     if showLevels > 0
         x2 = bar_index + levelBars
-        sigLines.push(line.new(bar_index, entry, x2, entry, color = color.gray, style = line.style_dotted))
-        sigLines.push(line.new(bar_index, sl, x2, sl, color = #ff5252))
-        sigLines.push(line.new(bar_index, tp1, x2, tp1, color = #29b6f6, style = line.style_dashed))
-        sigLines.push(line.new(bar_index, tp2, x2, tp2, color = #2962ff))
-        txt = (dir == 1 ? "BUY " : "SELL ") + f_grade(score) + str.tostring(score) + "\nTP2 " + str.tostring(tp2, format.mintick) + "\nTP1 " + str.tostring(tp1, format.mintick) + "\nEntry " + str.tostring(entry, format.mintick) + "\nSL " + str.tostring(sl, format.mintick)
-        sigLabels.push(label.new(x2, entry, txt, style = label.style_label_left, color = color.new(dir == 1 ? #089981 : #f23645, 15), textcolor = color.white, size = size.small))
-        while sigLines.size() > showLevels * 4
+        // position-tool style: red box = risk (Entry -> SL), green box = reward (Entry -> TP2)
+        sigBoxes.push(box.new(bar_index, math.max(entry, sl), x2, math.min(entry, sl), border_color = color.new(#f23645, 60), bgcolor = color.new(#f23645, 82)))
+        sigBoxes.push(box.new(bar_index, math.max(entry, tp2), x2, math.min(entry, tp2), border_color = color.new(#089981, 60), bgcolor = color.new(#089981, 82)))
+        sigLines.push(line.new(bar_index, tp1, x2, tp1, color = color.new(#089981, 0), style = line.style_dashed))
+        sigLines.push(line.new(bar_index, entry, x2, entry, color = color.new(#787b86, 0), style = line.style_dotted))
+        pxTip = "Entry " + str.tostring(entry, format.mintick) + "\nSL " + str.tostring(sl, format.mintick) + "\nTP1 " + str.tostring(tp1, format.mintick) + "\nTP2 " + str.tostring(tp2, format.mintick)
+        sigLabels.push(label.new(x2, tp2, "TP " + str.tostring(tp2, format.mintick), style = label.style_label_left, color = color.new(#089981, 10), textcolor = color.white, size = size.small, tooltip = pxTip))
+        sigLabels.push(label.new(x2, sl, "SL " + str.tostring(sl, format.mintick), style = label.style_label_left, color = color.new(#f23645, 10), textcolor = color.white, size = size.small, tooltip = pxTip))
+        sigLabels.push(label.new(x2, entry, (dir == 1 ? "BUY " : "SELL ") + f_grade(score) + " " + str.tostring(entry, format.mintick), style = label.style_label_left, color = color.new(#2a2e39, 0), textcolor = dir == 1 ? #00e676 : #ff5252, size = size.small, tooltip = pxTip))
+        while sigBoxes.size() > showLevels * 2
+            box.delete(sigBoxes.shift())
+        while sigLines.size() > showLevels * 2
             line.delete(sigLines.shift())
-        while sigLabels.size() > showLevels
+        while sigLabels.size() > showLevels * 3
             label.delete(sigLabels.shift())
 
 // ───────────────────────── Core logic (closed bars only) ─────────────────────────
@@ -413,19 +426,15 @@ plotshape(sellSig, "Sell", shape.triangledown, location.abovebar, #ff5252, size 
 alertcondition(buySig, "XAU SZ - BUY", "XAU SmartZones BUY {{ticker}} @ {{close}}")
 alertcondition(sellSig, "XAU SZ - SELL", "XAU SmartZones SELL {{ticker}} @ {{close}}")
 
-// ───────────────────────── Panel ─────────────────────────
+// ───────────────────────── Panel (card style, Thai) ─────────────────────────
 pos = panelPos == "top_left" ? position.top_left : panelPos == "bottom_right" ? position.bottom_right : panelPos == "bottom_left" ? position.bottom_left : position.top_right
-var table panel = table.new(pos, 1, 9, bgcolor = color.new(#131722, 10), border_color = color.new(#363a45, 0), border_width = 1, frame_color = color.new(#363a45, 0), frame_width = 1)
+var table panel = table.new(pos, 2, 7, bgcolor = color.new(#131722, 8), border_color = color.new(#2a2e39, 0), border_width = 1, frame_color = color.new(#2a2e39, 0), frame_width = 1)
 
-f_row(int r, string t, color c) =>
-    table.cell(panel, 0, r, t, text_color = c, text_size = size.small, text_halign = text.align_left)
+f_cell(int c, int r, string t, color fg, color bg) =>
+    table.cell(panel, c, r, t, text_color = fg, bgcolor = bg, text_size = uiSize, text_halign = text.align_left)
 
 if showPanel and barstate.islast
-    tTxt = trend == 1 ? "BULLISH ▲" : trend == -1 ? "BEARISH ▼" : "UNKNOWN"
-    tCol = trend == 1 ? #00e676 : trend == -1 ? #ff5252 : color.gray
-    st = "RANGE"
-    if not na(shPrev) and not na(slPrev)
-        st := shPrice > shPrev and slPrice > slPrev ? "UPTREND (HH/HL)" : shPrice < shPrev and slPrice < slPrev ? "DOWNTREND (LH/LL)" : "RANGE"
+    // nearest zones + is price inside one
     float dTop = na
     float dBot = na
     float dDist = na
@@ -449,30 +458,58 @@ if showPanel and barstate.islast
                 sDist := d
                 sTop  := z.top
                 sBot  := z.bottom
-    dTxt = na(dDist) ? "-" : str.tostring(dBot, format.mintick) + "-" + str.tostring(dTop, format.mintick) + " (" + str.tostring(dDist, "#.0") + ")"
-    sTxt = na(sDist) ? "-" : str.tostring(sBot, format.mintick) + "-" + str.tostring(sTop, format.mintick) + " (" + str.tostring(sDist, "#.0") + ")"
-    string plan = "No clear HTF trend: stand aside"
-    color  pc   = color.gray
+
+    bgDark  = color.new(#131722, 8)
+    green   = #00e676
+    red     = #ff5252
+    grey    = #9598a1
+
+    // trend badge
+    badge   = trend == 1 ? "▲ ขาขึ้น" : trend == -1 ? "▼ ขาลง" : "■ ไม่ชัด"
+    badgeBg = trend == 1 ? color.new(#089981, 0) : trend == -1 ? color.new(#f23645, 0) : color.new(#434651, 0)
+
+    // what to do now
+    freshSig = lastSigDir != 0 and not na(lastSigTime) and (time - lastSigTime) <= 3 * timeframe.in_seconds() * 1000
+    string plan = "เทรนด์ไม่ชัด · ยังไม่เทรด"
+    color  pc   = grey
     if trendMode == "OFF"
-        plan := inDemand ? ">> IN DEMAND: watch BUY" : inSupply ? ">> IN SUPPLY: watch SELL" : "Wait for price to reach a zone"
-        pc   := inDemand ? #00e676 : inSupply ? #ff5252 : color.gray
+        plan := inDemand ? "อยู่ในโซนซื้อ · รอสัญญาณ BUY" : inSupply ? "อยู่ในโซนขาย · รอสัญญาณ SELL" : "รอราคาเข้าโซน"
+        pc   := inDemand ? green : inSupply ? red : grey
     else if trend == 1
-        plan := inDemand ? ">> IN DEMAND: watch BUY trigger" : "Bias BUY: wait pullback to DEMAND"
-        pc   := #00e676
+        plan := inDemand ? "อยู่ในโซนซื้อ · รอสัญญาณ BUY" : "รอราคาย่อลงโซนซื้อ"
+        pc   := green
     else if trend == -1
-        plan := inSupply ? ">> IN SUPPLY: watch SELL trigger" : "Bias SELL: wait rally to SUPPLY"
-        pc   := #ff5252
+        plan := inSupply ? "อยู่ในโซนขาย · รอสัญญาณ SELL" : "รอราคาเด้งขึ้นโซนขาย"
+        pc   := red
     if not inSess
-        plan := "Out of session: no signals"
-        pc   := color.gray
-    sigTxt = lastSigDir == 0 ? "Last: none" : "Last: " + (lastSigDir == 1 ? "BUY " : "SELL ") + f_grade(lastScore) + str.tostring(lastScore) + " @" + str.tostring(lastEntry, format.mintick) + "  SL " + str.tostring(lastSL, format.mintick) + "  TP " + str.tostring(lastTP, format.mintick)
-    sigCol = lastSigDir == 1 ? #00e676 : lastSigDir == -1 ? #ff5252 : color.gray
-    f_row(0, "XAU SMART ZONES  " + syminfo.ticker + " " + timeframe.period, #ffd54f)
-    f_row(1, "HTF " + htf + " trend: " + tTxt, tCol)
-    f_row(2, "Structure: " + st, color.white)
-    f_row(3, "ATR(" + str.tostring(atrLen) + "): " + str.tostring(atr, "#.00"), color.white)
-    f_row(4, "Demand: " + dTxt, #4dd0a1)
-    f_row(5, "Supply: " + sTxt, #ff7a8a)
-    f_row(6, sigTxt, sigCol)
-    f_row(7, "Session: " + (inSess ? "OPEN" : "CLOSED"), inSess ? color.white : color.gray)
-    f_row(8, plan, pc)
+        plan := "นอกเวลาเทรด · พักก่อน"
+        pc   := grey
+    if freshSig
+        plan := (lastSigDir == 1 ? "BUY ใหม่!" : "SELL ใหม่!") + " ดูกรอบ SL/TP บนกราฟ"
+        pc   := lastSigDir == 1 ? green : red
+
+    f_cell(0, 0, badge, color.white, badgeBg)
+    f_cell(1, 0, plan, pc, bgDark)
+
+    sTxt = na(sDist) ? "—" : str.tostring(sBot, format.mintick) + " – " + str.tostring(sTop, format.mintick) + (sDist > 0 ? "  (+" + str.tostring(sDist, "#.0") + ")" : "  ◀ อยู่ในโซน")
+    dTxt = na(dDist) ? "—" : str.tostring(dBot, format.mintick) + " – " + str.tostring(dTop, format.mintick) + (dDist > 0 ? "  (−" + str.tostring(dDist, "#.0") + ")" : "  ◀ อยู่ในโซน")
+    f_cell(0, 1, "โซนขาย", red, bgDark)
+    f_cell(1, 1, sTxt, color.white, bgDark)
+    f_cell(0, 2, "โซนซื้อ", green, bgDark)
+    f_cell(1, 2, dTxt, color.white, bgDark)
+
+    sigCol = lastSigDir == 1 ? green : lastSigDir == -1 ? red : grey
+    sigTxt = lastSigDir == 0 ? "ยังไม่มีสัญญาณ" : (lastSigDir == 1 ? "BUY " : "SELL ") + f_grade(lastScore) + " @" + str.tostring(lastEntry, format.mintick) + "  SL " + str.tostring(lastSL, format.mintick) + "  TP " + str.tostring(lastTP, format.mintick)
+    f_cell(0, 3, "ล่าสุด", sigCol, bgDark)
+    f_cell(1, 3, sigTxt, sigCol, bgDark)
+
+    if not mobile
+        st = "ไซด์เวย์"
+        if not na(shPrev) and not na(slPrev)
+            st := shPrice > shPrev and slPrice > slPrev ? "ขาขึ้น (HH/HL)" : shPrice < shPrev and slPrice < slPrev ? "ขาลง (LH/LL)" : "ไซด์เวย์"
+        f_cell(0, 4, "โครงสร้าง", grey, bgDark)
+        f_cell(1, 4, st + "  ·  TF ใหญ่ " + htf, color.white, bgDark)
+        f_cell(0, 5, "ATR", grey, bgDark)
+        f_cell(1, 5, str.tostring(atr, "#.00") + " $/แท่ง", color.white, bgDark)
+        f_cell(0, 6, "เวลา", grey, bgDark)
+        f_cell(1, 6, inSess ? "ในช่วงเทรด" : "นอกช่วงเทรด", inSess ? color.white : grey, bgDark)
