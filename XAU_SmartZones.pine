@@ -472,22 +472,22 @@ if showPanel and barstate.islast
 
     // what to do now
     freshSig = lastSigDir != 0 and not na(lastSigTime) and (time - lastSigTime) <= 3 * timeframe.in_seconds() * 1000
-    string plan = "เทรนด์ไม่ชัด · ยังไม่เทรด"
+    string plan = "ยังไม่เทรด"
     color  pc   = grey
     if trendMode == "OFF"
-        plan := inDemand ? "อยู่ในโซนซื้อ · รอสัญญาณ BUY" : inSupply ? "อยู่ในโซนขาย · รอสัญญาณ SELL" : "รอราคาเข้าโซน"
+        plan := inDemand ? "ในโซนซื้อ · รอ BUY" : inSupply ? "ในโซนขาย · รอ SELL" : "รอราคาเข้าโซน"
         pc   := inDemand ? green : inSupply ? red : grey
     else if trend == 1
-        plan := inDemand ? "อยู่ในโซนซื้อ · รอสัญญาณ BUY" : "รอราคาย่อลงโซนซื้อ"
+        plan := inDemand ? "ในโซนซื้อ · รอ BUY" : "รอย่อลงโซนซื้อ"
         pc   := green
     else if trend == -1
-        plan := inSupply ? "อยู่ในโซนขาย · รอสัญญาณ SELL" : "รอราคาเด้งขึ้นโซนขาย"
+        plan := inSupply ? "ในโซนขาย · รอ SELL" : "รอเด้งขึ้นโซนขาย"
         pc   := red
     if not inSess
-        plan := "นอกเวลาเทรด · พักก่อน"
+        plan := "นอกเวลาเทรด"
         pc   := grey
     if freshSig
-        plan := (lastSigDir == 1 ? "BUY ใหม่!" : "SELL ใหม่!") + " ดู SL/TP บนกราฟ"
+        plan := (lastSigDir == 1 ? "BUY ใหม่!" : "SELL ใหม่!") + " ดูกรอบบนกราฟ"
         pc   := lastSigDir == 1 ? green : red
 
     f_cell(0, 0, badge, color.white, badgeBg)
@@ -495,15 +495,18 @@ if showPanel and barstate.islast
 
     sTxt = na(sDist) ? "—" : f_px(sBot) + " – " + f_px(sTop) + (sDist > 0 ? "  (+" + str.tostring(sDist, "#.0") + ")" : "  ◀ อยู่ในโซน")
     dTxt = na(dDist) ? "—" : f_px(dBot) + " – " + f_px(dTop) + (dDist > 0 ? "  (−" + str.tostring(dDist, "#.0") + ")" : "  ◀ อยู่ในโซน")
-    f_cell(0, 1, "โซนขาย", red, bgDark)
-    f_cell(1, 1, sTxt, color.white, bgDark)
-    f_cell(0, 2, "โซนซื้อ", green, bgDark)
-    f_cell(1, 2, dTxt, color.white, bgDark)
+    if not mobile
+        f_cell(0, 1, "โซนขาย", red, bgDark)
+        f_cell(1, 1, sTxt, color.white, bgDark)
+        f_cell(0, 2, "โซนซื้อ", green, bgDark)
+        f_cell(1, 2, dTxt, color.white, bgDark)
 
     sigCol = lastSigDir == 1 ? green : lastSigDir == -1 ? red : grey
-    sigTxt = lastSigDir == 0 ? "ยังไม่มีสัญญาณ" : (lastSigDir == 1 ? "BUY " : "SELL ") + f_grade(lastScore) + " @" + f_px(lastEntry) + "  SL " + f_px(lastSL) + "  TP " + f_px(lastTP)
-    f_cell(0, 3, "ล่าสุด", sigCol, bgDark)
-    f_cell(1, 3, sigTxt, sigCol, bgDark)
+    sigHead = lastSigDir == 0 ? "ล่าสุด" : (lastSigDir == 1 ? "BUY " : "SELL ") + f_grade(lastScore)
+    sigTxt = lastSigDir == 0 ? "ยังไม่มีสัญญาณ" : (mobile ? "" : "@" + f_px(lastEntry) + "  ") + "SL " + f_px(lastSL) + "  TP " + f_px(lastTP)
+    sigRow = mobile ? 1 : 3
+    f_cell(0, sigRow, sigHead, sigCol, bgDark)
+    f_cell(1, sigRow, sigTxt, sigCol, bgDark)
 
     if not mobile
         st = "ไซด์เวย์"
