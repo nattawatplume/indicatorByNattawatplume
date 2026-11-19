@@ -1,6 +1,6 @@
 # XAU SmartZones — Indicator ทองคำส่วนตัว (MT5)
 
-Indicator สำหรับ XAUUSD บน MetaTrader 5 ที่
+Indicator สำหรับ XAUUSD บน MetaTrader 5 (และ TradingView: ดู [TRADINGVIEW_MOBILE_TH.md](TRADINGVIEW_MOBILE_TH.md)) ที่
 1. **ตีโซน Demand / Supply ให้อัตโนมัติ**
 2. **ให้สัญญาณ BUY / SELL** เมื่อราคากลับมาทดสอบโซนแล้วมีแท่งเทียนปฏิเสธ
 3. **บอก Entry / SL / TP1 / TP2** และคะแนนคุณภาพ (A / B / C)
